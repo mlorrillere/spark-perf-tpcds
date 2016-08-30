@@ -67,7 +67,8 @@ object TPCDSBenchmark {
     val tpcds = new TPCDS()
 
     println(s"Run experiment.")
-    val experiment = tpcds.runExperiment(tpcds.sqlDialectPlannableQueries, iterations = iter)
+    val queries = tpcds.sqlDialectRunnable
+    val experiment = tpcds.runExperiment(queries, iterations = iter)
     experiment.waitForFinish(3600*10)
   }
 }
