@@ -8,5 +8,6 @@ val sparkVersion = "1.6.2"
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+  "org.apache.spark" %% "spark-hive" % sparkVersion % "provided",
   "com.databricks" %% "spark-sql-perf" % "0.3.2"
 )
