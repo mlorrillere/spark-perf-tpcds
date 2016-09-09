@@ -67,7 +67,8 @@ object TPCDSBenchmark {
     val conf = new SparkConf().setAppName("TPCDS Benchmark")
     conf.set("spark.broadcast.factory", "org.apache.spark.broadcast.HttpBroadcastFactory")
     val sc = new SparkContext(conf)
-    val sqlContext = new HiveContext(sc)
+    //val sqlContext = new HiveContext(sc)
+    val sqlContext = SQLContext.getOrCreate(sc)
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", "results")
