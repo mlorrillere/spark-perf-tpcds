@@ -16,6 +16,7 @@ import org.apache.spark.sql.hive.HiveContext
 
 import com.databricks.spark.sql.perf.tpcds.Tables
 import com.databricks.spark.sql.perf.tpcds.TPCDS
+import com.databricks.spark.sql.perf.{ExecutionMode, Benchmark}
 
 
 object TPCDSBenchmark {
@@ -66,7 +67,7 @@ object TPCDSBenchmark {
     val conf = new SparkConf().setAppName("TPCDS Benchmark")
     conf.set("spark.broadcast.factory", "org.apache.spark.broadcast.HttpBroadcastFactory")
     val sc = new SparkContext(conf)
-    val sqlContext = if (temp) SQLContext.getOrCreate(sc) else new HiveContext(sc)
+    val sqlContext = new HiveContext(sc)
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", "results")
@@ -75,7 +76,14 @@ object TPCDSBenchmark {
 
     if (gendata) {
       println("Generating TPC-DS data.")
-      tables.genData(location, "parquet", true, true, false, false, false)
+      tables.genData(location = location,
+                     format = "parquet",
+                     overwrite = true,
+                     partitionTables = true,
+                     useDoubleForDecimal = false,
+                     clusterByPartitionColumns = true,
+                     filterOutNullPartitionValues = true,
+                     tableFilter = "")
     }
 
     println(s"Create tables.")
@@ -84,21 +92,41 @@ object TPCDSBenchmark {
     else
       tables.createTemporaryTables(location, "parquet")
 
-    if (cache_tables) {
-      //tables.tables.foreach { table =>
-      Seq("date_dim", "store_sales", "item").foreach { table =>
-        println(s"Cache table ${table}")
-        //sqlContext.cacheTable(table)
-        sqlContext.table(table).persist(StorageLevel.MEMORY_ONLY)
-      }
-    }
-
     val tpcds = new TPCDS()
 
     println(s"Run experiment.")
-//    val queries = tpcds.sqlDialectRunnable.filter(x => !x.name.contains("q74"))
-    //val queries = tpcds.sqlDialectRunnable.slice(0, 5)
-    val queries = tpcds.sqlDialectRunnable.filter(_.name contains filter)
+    val queries = tpcds.sqlDialectPlannableQueries.filter(_.name contains filter)
+    import ExecutionMode._
+    /*
+    var queries = Seq(tpcds.Query("SELECT count(ss_item_sk)", "SELECT count(*) from store_sales", description = "Custom query", executionMode = CollectResults),
+                      tpcds.Query("SELECT *", "SELECT ss_item_sk from store_sales", description = "Custom query", executionMode = CollectResults)
+                    )
+    */
+
+
+    queries.foreach { q =>
+      println(s"Query: ${q.name}")
+      for (i <- 1 to iter) {
+        var failed = false
+        val start = System.currentTimeMillis()
+        val df = sqlContext.sql(q.sqlText.get)
+        if (cache_tables)
+          df.cache
+        try {
+          df.collect()
+        } catch {
+          case e: Exception =>
+            println("Failed to run: " + e)
+            failed = true
+        }
+        if (!failed) {
+          println(s"   [${q.name} - run ${i}] ${System.currentTimeMillis() - start} ms")
+        }
+      }
+      println("------------------------------------------------------------------")
+    }
+
+    /*
     val experiment = tpcds.runExperiment(queries, iterations = iter)
 
     experiment.waitForFinish(3600*10)
@@ -115,6 +143,7 @@ object TPCDSBenchmark {
         .orderBy("name")
         .show(truncate = false)
     println(s"""Results: sqlContext.read.json("${experiment.resultPath}")""")
+    */
 
     sc.stop()
   }
