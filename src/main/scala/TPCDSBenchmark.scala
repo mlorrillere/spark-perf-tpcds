@@ -79,9 +79,9 @@ object TPCDSBenchmark {
       tables.genData(location = location,
                      format = "parquet",
                      overwrite = true,
-                     partitionTables = true,
+                     partitionTables = false,
                      useDoubleForDecimal = false,
-                     clusterByPartitionColumns = true,
+                     clusterByPartitionColumns = false,
                      filterOutNullPartitionValues = true,
                      tableFilter = "")
     }
@@ -95,7 +95,7 @@ object TPCDSBenchmark {
     val tpcds = new TPCDS()
 
     println(s"Run experiment.")
-    val queries = tpcds.sqlDialectPlannableQueries.filter(_.name contains filter)
+    val queries = tpcds.sqlDialectRunnable.filter(_.name contains filter)
     import ExecutionMode._
     /*
     var queries = Seq(tpcds.Query("SELECT count(ss_item_sk)", "SELECT count(*) from store_sales", description = "Custom query", executionMode = CollectResults),
